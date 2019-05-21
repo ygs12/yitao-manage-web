@@ -35,8 +35,14 @@
       :total-items="totalGoods"
       :loading="loading"
       class="elevation-1"
+      select-all
+      v-model="selected"
     >
       <template slot="items" slot-scope="props">
+        <td class="text-xs-center">
+          <v-checkbox v-model="props.selected" primary hide-details>
+          </v-checkbox>
+        </td>
         <td class="text-xs-center">{{ props.item.id }}</td>
         <td class="text-xs-center">{{ props.item.title }}</td>
         <td class="text-xs-center">{{props.item.cname}}</td>
@@ -50,10 +56,13 @@
           </v-btn>
           <v-btn icon v-if="props.item.saleable" @click="upOrDownGoods(props.item)">下架</v-btn>
           <v-btn icon v-else @click="upOrDownGoods(props.item)">上架</v-btn>
+          <v-btn icon @click="addSeckill(props.item)">秒杀</v-btn>
         </td>
       </template>
       <template slot="no-data">
-        暂无可操作的商品信息
+        <v-alert :value="true" color="error" icon="warning">
+          对不起，没有查询到任何数据 :(
+        </v-alert>
       </template>
     </v-data-table>
     <!--弹出的对话框-->
@@ -81,12 +90,28 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!--添加秒杀商品-->
+    <v-dialog max-width="1000" v-model="seckill_show" scrollable persistent>
+      <v-card>
+        <v-card-title>
+          <span class="headline">商品秒杀</span>
+          <v-spacer></v-spacer>
+          <v-btn icon @click="seckill_close">
+            <v-icon>close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text class="px-5">
+          <seckill-form @seckill_close="seckill_close" :seckill_goods_message="seckill_goods_message"></seckill-form>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
 <script>
   // 导入自定义的表单组件
   import GoodsForm from './GoodsForm'
+  import SeckillForm from './SeckillForm'
 
   export default {
     name: "goods",
@@ -108,9 +133,12 @@
           {text: '操作', align: 'center', sortable: false}
         ],
         show: false,// 控制对话框的显示
+        seckill_show:false, //秒杀对话框显示
         oldGoods: {}, // 即将被编辑的商品信息
         isEdit: false, // 是否是编辑
         step: 1, // 子组件中的步骤线索引，默认为1
+        seckill_goods_message:{}, //秒杀商品信息
+        selected:[] //选择的条目
       }
     },
     mounted() { // 渲染后执行
@@ -133,6 +161,10 @@
       }
     },
     methods: {
+      seckill_close(){
+        this.seckill_show = false;
+        this.seckill_goods_message = {}
+      },
       getDataFromServer() { // 从服务的加载数的方法。
         // 发起请求
         this.$http.get("/item/spu/page", {
@@ -231,10 +263,27 @@
         if(this.step < 4 && this.$refs.goodsForm.$refs.basic.validate()){
           this.step++
         }
+      },
+      addSeckill(goods){
+        const selectId = this.selected.map( s => {
+          return s.id;
+        });
+        if (selectId.length === 1 && selectId[0] === goods.id) {
+          let temp = {};
+          temp.goodsId = goods.id;
+          temp.goodsTitle = goods.title;
+          temp.goodsCname = goods.cname;
+          temp.goodsBname = goods.bname;
+          this.seckill_goods_message = temp;
+          this.seckill_show = true;
+        }else {
+          this.$message.info("选中后再进行操作！");
+        }
       }
     },
     components: {
-      GoodsForm
+      GoodsForm,
+      SeckillForm
     }
   }
 </script>
